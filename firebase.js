@@ -4,7 +4,8 @@ import {
   getDatabase,
   ref,
   push,
-  onValue
+  onValue,
+  remove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
@@ -22,9 +23,7 @@ const db = getDatabase(app);
 
 /* ===== GUARDAR PACIENTE ===== */
 window.guardarPacienteFirebase = function (paciente) {
-
   return push(ref(db, "pacientes"), {
-
     nombre: paciente.nombre || "",
     dni: paciente.dni || "",
     nacimiento: paciente.nacimiento || "",
@@ -33,66 +32,71 @@ window.guardarPacienteFirebase = function (paciente) {
     email: paciente.email || "",
     alergias: paciente.alergias || "Ninguna",
     fecha: paciente.fecha || new Date().toLocaleString()
-
-  })
-
-  .then(() => {
-
-    console.log("Paciente guardado en Firebase");
-
-  })
-
-  .catch((error) => {
-
-    console.error("Error guardando paciente:", error);
-
   });
-
 };
 
 /* ===== CARGAR PACIENTES ===== */
 window.cargarPacientesFirebase = function () {
-
   const pacientesRef = ref(db, "pacientes");
 
   onValue(pacientesRef, (snapshot) => {
-
     const data = snapshot.val();
 
-    if (!data) {
+    const lista = data
+      ? Object.entries(data).map(([firebaseId, p], index) => ({
+          id: index + 1,
+          firebaseId,
+          nombre: p.nombre || "",
+          dni: p.dni || "",
+          nacimiento: p.nacimiento || "",
+          genero: p.genero || "",
+          telefono: p.telefono || "",
+          email: p.email || "",
+          alergias: p.alergias || "Ninguna",
+          fecha: p.fecha || ""
+        }))
+      : [];
 
-      console.log("No hay pacientes");
-      return;
-
-    }
-
-    const lista = Object.entries(data).map(([firebaseId, p], index) => ({
-
-      id: index + 1,
-      firebaseId: firebaseId,
-
-      nombre: p.nombre || "",
-      dni: p.dni || "",
-      nacimiento: p.nacimiento || "",
-      genero: p.genero || "",
-      telefono: p.telefono || "",
-      email: p.email || "",
-      alergias: p.alergias || "Ninguna",
-      fecha: p.fecha || ""
-
-    }));
-
-    /* ===== ACTUALIZAR PANEL ADMIN ===== */
     if (typeof window.aplicarPacientesFirebase === "function") {
-
       window.aplicarPacientesFirebase(lista);
-
     }
 
     console.log("Pacientes cargados:", lista);
-
   });
+};
 
+/* ===== ELIMINAR PACIENTE ===== */
+window.eliminarPacienteFirebase = function (firebaseId) {
+  if (!firebaseId) {
+    alert("Error: paciente sin ID de Firebase");
+    return;
+  }
+
+  return remove(ref(db, "pacientes/" + firebaseId))
+    .then(() => {
+      console.log("Paciente eliminado:", firebaseId);
+    })
+    .catch((error) => {
+      console.error("Error eliminando paciente:", error);
+      alert("No se pudo eliminar el paciente");
+    });
+};
+
+/* ===== ELIMINAR HISTORIAL ===== */
+window.eliminarHistorialFirebase = function (firebaseId) {
+  if (!firebaseId) {
+    alert("Error: historial sin ID de Firebase");
+    return;
+  }
+
+  return remove(ref(db, "historial/" + firebaseId))
+    .then(() => {
+      console.log("Historial eliminado:", firebaseId);
+    })
+    .catch((error) => {
+      console.error("Error eliminando historial:", error);
+      alert("No se pudo eliminar el historial");
+    });
 };
 
 /* ===== CARGA AUTOMÁTICA ===== */
