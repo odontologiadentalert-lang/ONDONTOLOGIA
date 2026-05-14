@@ -3636,8 +3636,21 @@ async function guardarPaciente(){
   const nombre=document.getElementById('mp-nombre').value.trim();
   const dni=document.getElementById('mp-dni').value.trim();
   const msg=document.getElementById('modal-msg');
-  if(!nombre||!dni){msg.textContent='Nombre y DNI son obligatorios.';msg.classList.add('show');return;}
-  if(pacientes.find(p=>String(p.dni)===String(dni))){msg.textContent='Ya existe un paciente con ese DNI.';msg.classList.add('show');return;}
+
+  msg.textContent='';
+  msg.classList.remove('show');
+
+  if(!nombre||!dni){
+    msg.textContent='Nombre y DNI son obligatorios.';
+    msg.classList.add('show');
+    return;
+  }
+
+  if(pacientes.find(p=>String(p.dni)===String(dni))){
+    msg.textContent='Ya existe un paciente con ese DNI.';
+    msg.classList.add('show');
+    return;
+  }
 
   const pacienteNuevo = {
     id: nextPacienteId++,
@@ -3667,20 +3680,25 @@ async function guardarPaciente(){
 
       pacienteNuevo.firebaseId = firebaseId || '';
       console.log('Firebase ID guardado:', firebaseId);
+
+      // IMPORTANTE:
+      // No hacemos pacientes.push(pacienteNuevo) aquí para evitar duplicados.
+      // Firebase cargará el paciente automáticamente mediante aplicarPacientesFirebase().
     } else {
-      console.warn('Firebase no está cargado. Revisa que firebase.js esté subido y conectado.');
+      console.warn('Firebase no está cargado. Se guardará solo localmente.');
+      pacientes.push(pacienteNuevo);
+      saveData();
+      renderPacientes();
+      poblarSelectPaciente();
+      poblarSelectHC();
+      renderAgenda();
+      renderDashboard();
+      renderEstadisticas();
     }
 
-    pacientes.push(pacienteNuevo);
-    saveData();
     closeModal('modal-paciente');
-    renderPacientes();
-    poblarSelectPaciente();
-    poblarSelectHC();
-    renderAgenda();
-    renderDashboard();
-    renderEstadisticas();
     showPatientsMsg('Paciente registrado correctamente.');
+
   } catch (error) {
     console.error('Error guardando paciente:', error);
     msg.textContent = 'No se pudo guardar el paciente en Firebase.';
