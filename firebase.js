@@ -21,9 +21,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+window.esAdmin = function () {
+  return typeof isAdmin === "function" && isAdmin();
+};
+
 /* ===== GUARDAR PACIENTE ===== */
-window.guardarPacienteFirebase = function (paciente) {
-  return push(ref(db, "pacientes"), {
+window.guardarPacienteFirebase = async function (paciente) {
+  const nuevoRef = await push(ref(db, "pacientes"), {
     nombre: paciente.nombre || "",
     dni: paciente.dni || "",
     nacimiento: paciente.nacimiento || "",
@@ -33,6 +37,8 @@ window.guardarPacienteFirebase = function (paciente) {
     alergias: paciente.alergias || "Ninguna",
     fecha: paciente.fecha || new Date().toLocaleString()
   });
+
+  return nuevoRef.key;
 };
 
 /* ===== CARGAR PACIENTES ===== */
@@ -65,38 +71,36 @@ window.cargarPacientesFirebase = function () {
   });
 };
 
-/* ===== ELIMINAR PACIENTE ===== */
-window.eliminarPacienteFirebase = function (firebaseId) {
+/* ===== ELIMINAR PACIENTE SOLO ADMIN ===== */
+window.eliminarPacienteFirebase = async function (firebaseId) {
+  if (!window.esAdmin()) {
+    alert("Solo el administrador puede eliminar pacientes");
+    return;
+  }
+
   if (!firebaseId) {
     alert("Error: paciente sin ID de Firebase");
     return;
   }
 
-  return remove(ref(db, "pacientes/" + firebaseId))
-    .then(() => {
-      console.log("Paciente eliminado:", firebaseId);
-    })
-    .catch((error) => {
-      console.error("Error eliminando paciente:", error);
-      alert("No se pudo eliminar el paciente");
-    });
+  await remove(ref(db, "pacientes/" + firebaseId));
+  console.log("Paciente eliminado:", firebaseId);
 };
 
-/* ===== ELIMINAR HISTORIAL ===== */
-window.eliminarHistorialFirebase = function (firebaseId) {
+/* ===== ELIMINAR HISTORIAL SOLO ADMIN ===== */
+window.eliminarHistorialFirebase = async function (firebaseId) {
+  if (!window.esAdmin()) {
+    alert("Solo el administrador puede eliminar historial");
+    return;
+  }
+
   if (!firebaseId) {
     alert("Error: historial sin ID de Firebase");
     return;
   }
 
-  return remove(ref(db, "historial/" + firebaseId))
-    .then(() => {
-      console.log("Historial eliminado:", firebaseId);
-    })
-    .catch((error) => {
-      console.error("Error eliminando historial:", error);
-      alert("No se pudo eliminar el historial");
-    });
+  await remove(ref(db, "historial/" + firebaseId));
+  console.log("Historial eliminado:", firebaseId);
 };
 
 /* ===== CARGA AUTOMÁTICA ===== */

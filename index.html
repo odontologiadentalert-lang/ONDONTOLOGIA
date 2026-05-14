@@ -3589,10 +3589,47 @@ function eliminarPaciente(id){
   const hasCitas = citas.some(c=>c.pacienteId===id);
   const hasHistoria = historias.some(h=>h.pacienteId===id);
 
-  if (hasConsultas || hasCitas || hasHistoria){
-    showPatientsMsg('No se puede eliminar: el paciente tiene historial clínico asociado.', true);
+  async function eliminarPaciente(id){
+  if(!isAdmin()){
+    showPatientsMsg('Solo el administrador puede eliminar pacientes.', true);
     return;
   }
+
+  const p = pacientes.find(x => x.id === id);
+
+  if(!p){
+    showPatientsMsg('Paciente no encontrado.', true);
+    return;
+  }
+
+  if(!confirm(`¿Eliminar paciente ${p.nombre}? También se eliminará su historial.`)) return;
+
+  // Eliminar en Firebase
+  if (p.firebaseId && typeof eliminarPacienteFirebase === 'function') {
+    await eliminarPacienteFirebase(p.firebaseId);
+  }
+
+  // Eliminar localmente
+  pacientes = pacientes.filter(x => x.id !== id);
+  consultas = consultas.filter(c => c.pacienteId !== id);
+  citas = citas.filter(c => c.pacienteId !== id);
+  historias = historias.filter(h => h.pacienteId !== id);
+
+  if (Number(currentClientId) === Number(id)) {
+    currentClientId = null;
+    sessionStorage.removeItem(CLIENT_SESSION_KEY);
+  }
+
+  saveData();
+  renderPacientes();
+  poblarSelectPaciente();
+  poblarSelectHC();
+  renderAgenda();
+  renderDashboard();
+  renderEstadisticas();
+
+  showPatientsMsg('Paciente e historial eliminados correctamente.');
+}
 
   if(!confirm(`¿Eliminar paciente ${p.nombre}? Esta acción no se puede deshacer.`)) return;
 
