@@ -3580,99 +3580,112 @@ function showPatientsMsg(text, isError=false){
   }
 }
 
-function eliminarPaciente(id){
-  if(!isAdmin()){ showPatientsMsg('Solo el administrador puede eliminar pacientes.', true); return; }
-  const p = pacientes.find(x=>x.id===id);
-  if(!p){ showPatientsMsg('Paciente no encontrado.', true); return; }
-
-  const hasConsultas = consultas.some(c=>c.pacienteId===id);
-  const hasCitas = citas.some(c=>c.pacienteId===id);
-  const hasHistoria = historias.some(h=>h.pacienteId===id);
-
-  async function eliminarPaciente(id){
+async function eliminarPaciente(id){
   if(!isAdmin()){
     showPatientsMsg('Solo el administrador puede eliminar pacientes.', true);
     return;
   }
 
-  const p = pacientes.find(x => x.id === id);
+  const p = pacientes.find(x => Number(x.id) === Number(id));
+
+  console.log('Paciente a borrar:', p);
+  console.log('Firebase ID:', p ? p.firebaseId : 'Paciente no encontrado');
 
   if(!p){
     showPatientsMsg('Paciente no encontrado.', true);
     return;
   }
 
-  if(!confirm(`¿Eliminar paciente ${p.nombre}? También se eliminará su historial.`)) return;
+  if(!confirm(`¿Eliminar paciente ${p.nombre}? También se eliminará su historial, consultas y citas.`)) return;
 
-  // Eliminar en Firebase
-  if (p.firebaseId && typeof eliminarPacienteFirebase === 'function') {
-    await eliminarPacienteFirebase(p.firebaseId);
+  try {
+    // Eliminar en Firebase usando el ID real de Firebase
+    if (p.firebaseId && typeof eliminarPacienteFirebase === 'function') {
+      await eliminarPacienteFirebase(p.firebaseId);
+    } else {
+      console.warn('Este paciente no tiene firebaseId. Se eliminará solo del panel local.', p);
+    }
+
+    // Eliminar datos relacionados localmente
+    pacientes = pacientes.filter(x => Number(x.id) !== Number(id));
+    consultas = consultas.filter(c => Number(c.pacienteId) !== Number(id));
+    citas = citas.filter(c => Number(c.pacienteId) !== Number(id));
+    historias = historias.filter(h => Number(h.pacienteId) !== Number(id));
+
+    if (Number(currentClientId) === Number(id)) {
+      currentClientId = null;
+      sessionStorage.removeItem(CLIENT_SESSION_KEY);
+    }
+
+    saveData();
+    renderPacientes();
+    poblarSelectPaciente();
+    poblarSelectHC();
+    renderAgenda();
+    renderDashboard();
+    renderEstadisticas();
+
+    showPatientsMsg('Paciente e historial eliminados correctamente.');
+  } catch (error) {
+    console.error('Error eliminando paciente:', error);
+    showPatientsMsg('No se pudo eliminar el paciente en Firebase.', true);
   }
-
-  // Eliminar localmente
-  pacientes = pacientes.filter(x => x.id !== id);
-  consultas = consultas.filter(c => c.pacienteId !== id);
-  citas = citas.filter(c => c.pacienteId !== id);
-  historias = historias.filter(h => h.pacienteId !== id);
-
-  if (Number(currentClientId) === Number(id)) {
-    currentClientId = null;
-    sessionStorage.removeItem(CLIENT_SESSION_KEY);
-  }
-
-  saveData();
-  renderPacientes();
-  poblarSelectPaciente();
-  poblarSelectHC();
-  renderAgenda();
-  renderDashboard();
-  renderEstadisticas();
-
-  showPatientsMsg('Paciente e historial eliminados correctamente.');
 }
 
-  if(!confirm(`¿Eliminar paciente ${p.nombre}? Esta acción no se puede deshacer.`)) return;
-
-  pacientes = pacientes.filter(x=>x.id!==id);
-  if (Number(currentClientId) === Number(id)) {
-    currentClientId = null;
-    sessionStorage.removeItem(CLIENT_SESSION_KEY);
-  }
-
-  saveData();
-  renderPacientes();
-  poblarSelectPaciente();
-  poblarSelectHC();
-  renderAgenda();
-  renderDashboard();
-  renderEstadisticas();
-  showPatientsMsg('Paciente eliminado correctamente.');
-}
-
-function guardarPaciente(){
+async function guardarPaciente(){
   const nombre=document.getElementById('mp-nombre').value.trim();
   const dni=document.getElementById('mp-dni').value.trim();
   const msg=document.getElementById('modal-msg');
   if(!nombre||!dni){msg.textContent='Nombre y DNI son obligatorios.';msg.classList.add('show');return;}
   if(pacientes.find(p=>String(p.dni)===String(dni))){msg.textContent='Ya existe un paciente con ese DNI.';msg.classList.add('show');return;}
-  const pacienteNuevo = {id:nextPacienteId++,nombre,dni,nacimiento:document.getElementById('mp-fecha').value,genero:document.getElementById('mp-genero').value,telefono:document.getElementById('mp-telefono').value.trim(),email:document.getElementById('mp-email-reg').value.trim().toLowerCase(),alergias:document.getElementById('mp-alergias').value.trim()||'Ninguna'};
-  pacientes.push(pacienteNuevo);
 
-  if (typeof guardarPacienteFirebase === 'function') {
-    guardarPacienteFirebase({
-      nombre: pacienteNuevo.nombre,
-      dni: pacienteNuevo.dni,
-      nacimiento: pacienteNuevo.nacimiento,
-      genero: pacienteNuevo.genero,
-      telefono: pacienteNuevo.telefono,
-      email: pacienteNuevo.email,
-      alergias: pacienteNuevo.alergias,
-      fecha: new Date().toLocaleString()
-    });
-  } else {
-    console.warn('Firebase no está cargado. Revisa que firebase.js esté subido y conectado.');
+  const pacienteNuevo = {
+    id: nextPacienteId++,
+    nombre,
+    dni,
+    nacimiento: document.getElementById('mp-fecha').value,
+    genero: document.getElementById('mp-genero').value,
+    telefono: document.getElementById('mp-telefono').value.trim(),
+    email: document.getElementById('mp-email-reg').value.trim().toLowerCase(),
+    alergias: document.getElementById('mp-alergias').value.trim() || 'Ninguna',
+    fecha: new Date().toLocaleString(),
+    firebaseId: ''
+  };
+
+  try {
+    if (typeof guardarPacienteFirebase === 'function') {
+      const firebaseId = await guardarPacienteFirebase({
+        nombre: pacienteNuevo.nombre,
+        dni: pacienteNuevo.dni,
+        nacimiento: pacienteNuevo.nacimiento,
+        genero: pacienteNuevo.genero,
+        telefono: pacienteNuevo.telefono,
+        email: pacienteNuevo.email,
+        alergias: pacienteNuevo.alergias,
+        fecha: pacienteNuevo.fecha
+      });
+
+      pacienteNuevo.firebaseId = firebaseId || '';
+      console.log('Firebase ID guardado:', firebaseId);
+    } else {
+      console.warn('Firebase no está cargado. Revisa que firebase.js esté subido y conectado.');
+    }
+
+    pacientes.push(pacienteNuevo);
+    saveData();
+    closeModal('modal-paciente');
+    renderPacientes();
+    poblarSelectPaciente();
+    poblarSelectHC();
+    renderAgenda();
+    renderDashboard();
+    renderEstadisticas();
+    showPatientsMsg('Paciente registrado correctamente.');
+  } catch (error) {
+    console.error('Error guardando paciente:', error);
+    msg.textContent = 'No se pudo guardar el paciente en Firebase.';
+    msg.classList.add('show');
   }
-  saveData();closeModal('modal-paciente');renderPacientes();poblarSelectPaciente();poblarSelectHC();renderAgenda();renderDashboard();renderEstadisticas();showPatientsMsg('Paciente registrado correctamente.');
 }
 
 // ====== AUTH ======

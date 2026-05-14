@@ -21,13 +21,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+/* ===== VERIFICAR ADMIN ===== */
 window.esAdmin = function () {
   return typeof isAdmin === "function" && isAdmin();
 };
 
 /* ===== GUARDAR PACIENTE ===== */
 window.guardarPacienteFirebase = async function (paciente) {
+
   const nuevoRef = await push(ref(db, "pacientes"), {
+
     nombre: paciente.nombre || "",
     dni: paciente.dni || "",
     nacimiento: paciente.nacimiento || "",
@@ -36,6 +39,7 @@ window.guardarPacienteFirebase = async function (paciente) {
     email: paciente.email || "",
     alergias: paciente.alergias || "Ninguna",
     fecha: paciente.fecha || new Date().toLocaleString()
+
   });
 
   return nuevoRef.key;
@@ -43,15 +47,19 @@ window.guardarPacienteFirebase = async function (paciente) {
 
 /* ===== CARGAR PACIENTES ===== */
 window.cargarPacientesFirebase = function () {
+
   const pacientesRef = ref(db, "pacientes");
 
   onValue(pacientesRef, (snapshot) => {
+
     const data = snapshot.val();
 
     const lista = data
       ? Object.entries(data).map(([firebaseId, p], index) => ({
+
           id: index + 1,
           firebaseId,
+
           nombre: p.nombre || "",
           dni: p.dni || "",
           nacimiento: p.nacimiento || "",
@@ -60,47 +68,66 @@ window.cargarPacientesFirebase = function () {
           email: p.email || "",
           alergias: p.alergias || "Ninguna",
           fecha: p.fecha || ""
+
         }))
       : [];
 
     if (typeof window.aplicarPacientesFirebase === "function") {
+
       window.aplicarPacientesFirebase(lista);
+
     }
 
     console.log("Pacientes cargados:", lista);
+
   });
+
 };
 
-/* ===== ELIMINAR PACIENTE SOLO ADMIN ===== */
+/* ===== ELIMINAR PACIENTE ===== */
 window.eliminarPacienteFirebase = async function (firebaseId) {
+
   if (!window.esAdmin()) {
+
     alert("Solo el administrador puede eliminar pacientes");
     return;
+
   }
 
   if (!firebaseId) {
+
     alert("Error: paciente sin ID de Firebase");
     return;
+
   }
 
   await remove(ref(db, "pacientes/" + firebaseId));
+
   console.log("Paciente eliminado:", firebaseId);
+
 };
 
-/* ===== ELIMINAR HISTORIAL SOLO ADMIN ===== */
+/* ===== ELIMINAR HISTORIAL ===== */
 window.eliminarHistorialFirebase = async function (firebaseId) {
+
   if (!window.esAdmin()) {
+
     alert("Solo el administrador puede eliminar historial");
     return;
+
   }
 
   if (!firebaseId) {
+
     alert("Error: historial sin ID de Firebase");
     return;
+
   }
 
   await remove(ref(db, "historial/" + firebaseId));
+
   console.log("Historial eliminado:", firebaseId);
+
 };
 
 /* ===== CARGA AUTOMÁTICA ===== */
